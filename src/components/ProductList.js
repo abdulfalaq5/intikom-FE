@@ -9,9 +9,9 @@ function ProductList({ products, onAddToCart }) {
       padding: "20px 0",
     }}>
       {products.length > 0 ? (
-        products.map((product, index) => (
+        products.map((product) => (
           <div
-            key={index}
+            key={product.id}
             style={{
               backgroundColor: "#ffffff",
               borderRadius: "12px",
@@ -61,15 +61,6 @@ function ProductList({ products, onAddToCart }) {
                 {product.name}
               </h3>
             </div>
-            
-            <p style={{
-              margin: 0,
-              fontSize: "14px",
-              color: "#666",
-              lineHeight: "1.5",
-            }}>
-              {product.description}
-            </p>
 
             <div style={{
               display: "flex",
@@ -82,7 +73,7 @@ function ProductList({ products, onAddToCart }) {
                 color: "#4CAF50",
                 fontWeight: "bold"
               }}>
-                ${product.price}
+                Rp {parseFloat(product.price).toLocaleString('id-ID')}
               </span>
               <button 
                 onClick={() => onAddToCart(product)}

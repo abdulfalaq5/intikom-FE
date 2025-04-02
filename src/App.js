@@ -3,15 +3,6 @@ import SearchBar from "./components/SearchBar";
 import ProductList from "./components/ProductList";
 import { FaStore, FaFilter } from "react-icons/fa";
 
-const productsData = [
-  { name: "Laptop Gaming", price: 1200, description: "High-performance gaming laptop" },
-  { name: "Smartphone Pro", price: 800, description: "Latest smartphone with advanced features" },
-  { name: "Tablet Ultra", price: 600, description: "Premium tablet for work and entertainment" },
-  { name: "Smart Watch", price: 300, description: "Fitness tracking smartwatch" },
-  { name: "Wireless Earbuds", price: 150, description: "Noise-cancelling wireless earbuds" },
-  { name: "Smart TV", price: 900, description: "4K Smart TV with streaming capabilities" },
-];
-
 const priceRanges = [
   { label: "Semua", min: 0, max: Infinity },
   { label: "Under $200", min: 0, max: 200 },
@@ -21,26 +12,67 @@ const priceRanges = [
 ];
 
 function App() {
-  const [products, setProducts] = useState(productsData);
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedPriceRange, setSelectedPriceRange] = useState(0);
   const [notification, setNotification] = useState({ show: false, message: "" });
 
-  useEffect(() => {
-    const filteredProducts = productsData.filter((product) => {
-      const matchesSearch = 
-        product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        product.description.toLowerCase().includes(searchQuery.toLowerCase());
-      
-      const priceRange = priceRanges[selectedPriceRange];
-      const matchesPrice = 
-        product.price >= priceRange.min && 
-        product.price <= priceRange.max;
+  // Keep original products data for filtering
+  const [originalProducts, setOriginalProducts] = useState([]);
 
-      return matchesSearch && matchesPrice;
-    });
-    setProducts(filteredProducts);
-  }, [searchQuery, selectedPriceRange]);
+  // Update fetch function with CORS headers
+  const fetchProducts = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch('http://localhost:9494/products', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE',
+          'Access-Control-Allow-Headers': 'Content-Type'
+        },
+      });
+      if (!response.ok) {
+        throw new Error('Failed to fetch products');
+      }
+      const data = await response.json();
+      setOriginalProducts(data);
+      setProducts(data);
+      setError(null);
+    } catch (err) {
+      setError('Failed to load products. Please try again later.');
+      console.error('Error fetching products:', err);
+      setProducts([]);
+      setOriginalProducts([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchProducts();
+  }, []);
+
+  // Update filtering effect to use originalProducts
+  useEffect(() => {
+    if (!loading && originalProducts.length > 0) {
+      const filteredProducts = originalProducts.filter((product) => {
+        const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase());
+        
+        const priceRange = priceRanges[selectedPriceRange];
+        const productPrice = parseFloat(product.price);
+        const matchesPrice = 
+          productPrice >= priceRange.min && 
+          productPrice <= priceRange.max;
+
+        return matchesSearch && matchesPrice;
+      });
+      setProducts(filteredProducts);
+    }
+  }, [searchQuery, selectedPriceRange, originalProducts, loading]);
 
   const handleAddToCart = (product) => {
     setNotification({
@@ -91,53 +123,61 @@ function App() {
           padding: "24px",
           boxShadow: "0 2px 8px rgba(0, 0, 0, 0.05)",
         }}>
-          <SearchBar onSearch={setSearchQuery} />
-          
-          <div style={{
-            marginBottom: "24px",
-            display: "flex",
-            alignItems: "center",
-            gap: "12px",
-            flexWrap: "wrap",
-          }}>
-            <FaFilter style={{ color: "#4CAF50" }} />
-            <div style={{
-              display: "flex",
-              gap: "8px",
-              flexWrap: "wrap",
-            }}>
-              {priceRanges.map((range, index) => (
-                <button
-                  key={index}
-                  onClick={() => setSelectedPriceRange(index)}
-                  style={{
-                    padding: "8px 16px",
-                    borderRadius: "20px",
-                    border: "none",
-                    backgroundColor: selectedPriceRange === index ? "#4CAF50" : "#f0f0f0",
-                    color: selectedPriceRange === index ? "white" : "#666",
-                    cursor: "pointer",
-                    fontSize: "14px",
-                    transition: "all 0.2s ease",
-                  }}
-                  onMouseOver={(e) => {
-                    if (selectedPriceRange !== index) {
-                      e.currentTarget.style.backgroundColor = "#e8f5e9";
-                    }
-                  }}
-                  onMouseOut={(e) => {
-                    if (selectedPriceRange !== index) {
-                      e.currentTarget.style.backgroundColor = "#f0f0f0";
-                    }
-                  }}
-                >
-                  {range.label}
-                </button>
-              ))}
-            </div>
-          </div>
+          {loading ? (
+            <div style={{ textAlign: 'center', padding: '20px' }}>Loading...</div>
+          ) : error ? (
+            <div style={{ textAlign: 'center', color: 'red', padding: '20px' }}>{error}</div>
+          ) : (
+            <>
+              <SearchBar onSearch={setSearchQuery} />
+              
+              <div style={{
+                marginBottom: "24px",
+                display: "flex",
+                alignItems: "center",
+                gap: "12px",
+                flexWrap: "wrap",
+              }}>
+                <FaFilter style={{ color: "#4CAF50" }} />
+                <div style={{
+                  display: "flex",
+                  gap: "8px",
+                  flexWrap: "wrap",
+                }}>
+                  {priceRanges.map((range, index) => (
+                    <button
+                      key={index}
+                      onClick={() => setSelectedPriceRange(index)}
+                      style={{
+                        padding: "8px 16px",
+                        borderRadius: "20px",
+                        border: "none",
+                        backgroundColor: selectedPriceRange === index ? "#4CAF50" : "#f0f0f0",
+                        color: selectedPriceRange === index ? "white" : "#666",
+                        cursor: "pointer",
+                        fontSize: "14px",
+                        transition: "all 0.2s ease",
+                      }}
+                      onMouseOver={(e) => {
+                        if (selectedPriceRange !== index) {
+                          e.currentTarget.style.backgroundColor = "#e8f5e9";
+                        }
+                      }}
+                      onMouseOut={(e) => {
+                        if (selectedPriceRange !== index) {
+                          e.currentTarget.style.backgroundColor = "#f0f0f0";
+                        }
+                      }}
+                    >
+                      {range.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
 
-          <ProductList products={products} onAddToCart={handleAddToCart} />
+              <ProductList products={products} onAddToCart={handleAddToCart} />
+            </>
+          )}
         </div>
       </div>
 
